@@ -93,6 +93,7 @@ class MultiboxLoss(object):
             for label in labels:
                 actual_labels.append(label)
 
+            # 03/22
             pred_locs = y_pred[i][:, :4]  # <class 'tensorflow.python.framework.ops.Tensor'> (938, 4)
             pred_confs = y_pred[i][:, 4:-4]  # <class 'tensorflow.python.framework.ops.Tensor'> (938, 25)
 
