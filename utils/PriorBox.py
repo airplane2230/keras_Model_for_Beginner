@@ -50,8 +50,6 @@ class PriorBox(Layer):
         feature_map_ratio = self.aspect_ratio[self.feature_map_number - 1]
         s = 0.0
 
-        print(x.shape[0])
-
         default_boxes = None
         for eleh in range(self.height):
             center_y = (eleh + 0.5) / float(self.height)

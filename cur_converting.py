@@ -1,10 +1,12 @@
 import tensorflow as tf
+from tensorflow.keras.optimizers import Adam
 
 import pickle
 import cv2
 import numpy as np
 
 from model.SSD_model import SSD
+from loss.MultiBoxLoss import MultiboxLoss
 
 NUM_CLASSES = 21
 BATCH_SIZE = 8
@@ -52,6 +54,7 @@ ragged_value_list = tf.ragged.constant(value_list)
 
 image_dir_ds = tf.data.Dataset.from_tensor_slices(image_dir_list)
 value_ds = tf.data.Dataset.from_tensor_slices(ragged_value_list)
+value_ds = value_ds.batch(8)
 
 def get_imageLabel(image_dir):
     image = tf.io.read_file(IMAGE_PATH + image_dir)
@@ -62,8 +65,29 @@ def get_imageLabel(image_dir):
     return image
 
 image_ds = image_dir_ds.map(get_imageLabel)
+image_ds = image_ds.batch(8)
+
+image = None
+value = None
+
+for i in image_ds:
+    image = i
+for j in value_ds:
+    value = j
+
+a = value[0, :, :4].to_tensor()
+for i in a:
+    print(i)
 
 # make model
-input_shape = (224, 224, 3)
-model = SSD(input_shape, num_classes = 21)
-
+# input_shape = (224, 224, 3)
+# model = SSD(input_shape, num_classes = NUM_CLASSES)
+#
+# optimizer = Adam()
+# train_loss = MultiboxLoss(BATCH_SIZE)
+#
+# with tf.GradientTape() as tape:
+#     # predictions shape: (None, 938, 29)
+#     # value shape: (Object Number, None)
+#     predictions = model(image)
+#     loss = train_loss.comute_loss(value, predictions)

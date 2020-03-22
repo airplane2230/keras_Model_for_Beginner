@@ -63,8 +63,8 @@ class MultiboxLoss(object):
                 y_pred[:, :, 10:]:
                     mbox_priorbox(cx, cy, w, h)
         """
-        # y_true class : <class 'tensorflow.python.framework.ops.Tensor'>
-        default_boxes = y_pred[:, :, -4:]  # default_boxes shape : (8, 938, 4) --> 8 is batch_size
+        # default_boxes shape : (batch_size, 938, 4) --> 8 is batch_size
+        default_boxes = y_pred[:, :, -4:]
 
         positives = []
         negatives = []
@@ -74,23 +74,24 @@ class MultiboxLoss(object):
         num_boxes = y_pred.shape[1]
         matcher = Matcher(num_boxes, default_boxes)
         print('make Matcher=======================')
+
         actual_locs = []
         actual_labels = []
+
         for i in range(self.batch_size):
             # y_true[i][:, :, :4], [-1, 4] --> (i, num_box, 4)
             # tf.reshape(y_true[i][:, :, :4], [-1, 4]) --> (num_box, 4)
-            locs = tf.reshape(y_true[i][:, :, :4], [-1, 4])
-            labels = tf.argmax(y_true[i][:, :, 4:], axis=-1)  # (1, num_box)
-            labels = tf.reshape(labels, [-1])  # (num_box, )
-            for i in range(len(locs)):
-                loc = locs[i]  # loc : Tensor("TensorArrayV2Read/TensorListGetItem:0", shape=(4,), dtype=float32)
+            locs = y_true[i, :, :4].to_tensor()
+            # labels shape: (num_box, )
+            labels = tf.math.argmax(y_true[0, :, 4:].to_tensor(), axis = 1)
+
+            for loc in locs:
                 loc = convert2wh(loc)
-                loc = corner2center(loc)  # Tensor("PartitionedCall_1:0", shape=(4,), dtype=float32)
+                loc = corner2center(loc)
                 actual_locs.append(loc)
 
-            for i in range(len(labels)):
-                label = labels[i]
-                actual_labels.append(labels)
+            for label in labels:
+                actual_labels.append(label)
 
             pred_locs = y_pred[i][:, :4]  # <class 'tensorflow.python.framework.ops.Tensor'> (938, 4)
             pred_confs = y_pred[i][:, 4:-4]  # <class 'tensorflow.python.framework.ops.Tensor'> (938, 25)
