@@ -1,7 +1,9 @@
-# keras_SSD
+# keras_Model_for_Beginner
+<hr>
 
-+ Dataset: VOC2007
-+ model_version: SSD for object detection
-+ main_tool: Keras + TensorFlow 2.1.0
-<br>
-+ paper: (SSD: Single Shot MultiBox Detector)[https://arxiv.org/pdf/1512.02325.pdf]
+## Classification
++ DenseNet(simply)
+
+
+## Object Detection
++ SSD(continue): https://arxiv.org/pdf/1512.02325.pdf
