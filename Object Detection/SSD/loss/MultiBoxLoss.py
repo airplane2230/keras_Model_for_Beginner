@@ -63,7 +63,7 @@ class MultiboxLoss(object):
                 y_pred[:, :, 10:]:
                     mbox_priorbox(cx, cy, w, h)
         """
-        # default_boxes shape : (batch_size, 938, 4) --> 8 is batch_size
+        # default_boxes shape : (batch_size, 938, 4)
         default_boxes = y_pred[:, :, -4:]
 
         positives = []
@@ -93,7 +93,6 @@ class MultiboxLoss(object):
             for label in labels:
                 actual_labels.append(label)
 
-            # 03/22
             pred_locs = y_pred[i][:, :4]  # <class 'tensorflow.python.framework.ops.Tensor'> (938, 4)
             pred_confs = y_pred[i][:, 4:-4]  # <class 'tensorflow.python.framework.ops.Tensor'> (938, 25)
 

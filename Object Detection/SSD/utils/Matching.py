@@ -56,10 +56,11 @@ class Matcher:
         for _ in range(self.num_boxes):
             matches.append(None)  # len is 938
 
-        test_int = 0
         for gt_label, gt_box in zip(actual_labels, actual_locs):
             for i in range(len(matches)):
-                # jacc : Tensor("PartitionedCall:0", shape=(), dtype=float64) () <class 'tensorflow.python.framework.ops.Tensor'>
+                # gt_box: ground_truth box location (4,)
+                # self.default_boxes[batch_size, i]: default box location (4,)
+                # Computation jaccard with gt_box and default_box
                 jacc = jaccard(gt_box, self.default_boxes[batch_size, i])  # self.default_boxes[batch_size, i] -> (4, )
                 if (tf.math.greater_equal(jacc, 0.5)):
                     matches[i] = 4

@@ -7,10 +7,10 @@ def intersection(rect1, rect2):
     compute boarder line top, left, right and bottom.
     rect is defined as [ top_left_x, top_left_y, width, height ]
     """
-    top = np.max(rect1[1], rect2[1])
-    left = np.max(rect1[0], rect2[0])
-    right = np.min(rect1[0] + rect1[2], rect2[0] + rect2[2])
-    bottom = np.min(rect1[1] + rect1[3], rect2[1] + rect2[3])
+    top = tf.math.reduce_max([rect1[1], rect2[1]])
+    left = tf.math.reduce_max([rect1[0], rect2[0]])
+    right = tf.math.reduce_min([rect1[0] + rect1[2], rect2[0] + rect2[2]])
+    bottom = tf.math.reduce_min([rect1[1] + rect1[3], rect2[1] + rect2[3]])
 
     result = tf.where(tf.math.logical_and(tf.greater(bottom, top), tf.greater(right, left)),
                       (bottom - top) * (right - left), 0)
@@ -31,12 +31,12 @@ def jaccard(rect1, rect2):
     # len_rect1_ : 4, len_rect2_ : 4
     rect1_ = []
     for i in range(len(rect1)):
-        cond_value = tf.where(rect1[i] >= 0, rect1[i], 0)
+        cond_value = tf.cast(tf.where(rect1[i] >= 0., rect1[i], 0.), dtype = tf.float32)
         rect1_.append(cond_value)
 
     rect2_ = []
     for i in range(len(rect2)):
-        cond_value = tf.where(rect2[i] >= 0, rect2[i], 0)
+        cond_value = tf.cast(tf.where(rect2[i] >= 0., rect2[i], 0.), dtype = tf.float32)
         rect2_.append(cond_value)
 
     s = tf.add(tf.multiply(rect1_[2], rect1_[3]), tf.multiply(rect2_[2], rect2_[3]))

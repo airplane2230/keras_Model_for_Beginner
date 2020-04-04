@@ -49,11 +49,13 @@ for i in range(BATCH_SIZE):
 image_dir_list = np.array(image_dir_list)
 
 value_list = np.array(value_list)
+
 # ragging data.
 ragged_value_list = tf.ragged.constant(value_list)
 
 image_dir_ds = tf.data.Dataset.from_tensor_slices(image_dir_list)
 value_ds = tf.data.Dataset.from_tensor_slices(ragged_value_list)
+# use 8 batch size
 value_ds = value_ds.batch(8)
 
 def get_imageLabel(image_dir):
@@ -75,19 +77,15 @@ for i in image_ds:
 for j in value_ds:
     value = j
 
-a = value[0, :, :4].to_tensor()
-for i in a:
-    print(i)
-
 # make model
-# input_shape = (224, 224, 3)
-# model = SSD(input_shape, num_classes = NUM_CLASSES)
-#
-# optimizer = Adam()
-# train_loss = MultiboxLoss(BATCH_SIZE)
-#
-# with tf.GradientTape() as tape:
-#     # predictions shape: (None, 938, 29)
-#     # value shape: (Object Number, None)
-#     predictions = model(image)
-#     loss = train_loss.comute_loss(value, predictions)
+input_shape = (224, 224, 3)
+model = SSD(input_shape, num_classes = NUM_CLASSES)
+
+optimizer = Adam()
+train_loss = MultiboxLoss(BATCH_SIZE)
+
+with tf.GradientTape() as tape:
+    # predictions shape: (None, 938, 29)
+    # value shape: (Object Number, None)
+    predictions = model(image)
+    loss = train_loss.comute_loss(value, predictions)
