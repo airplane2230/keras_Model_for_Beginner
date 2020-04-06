@@ -21,26 +21,32 @@ class MultiboxLoss(object):
 
     # bbox 의 loc에 대한 loss 계산
     def _smooth_L1_Loss(self, y_true, y_pred, pos):
-        abs_loss = tf.abs(y_true - y_pred)
+        pos = tf.convert_to_tensor(pos, dtype = tf.float32)
+
+        abs_loss = tf.math.abs(y_true - y_pred)
         sq_loss = 0.5 * (y_true - y_pred) ** 2
-        l1_loss = tf.where(tf.less(abs_loss, 1.0), sq_loss, abs_loss - 0.5)
+        l1_loss = tf.where(tf.math.less(abs_loss, 1.0), sq_loss, abs_loss - 0.5)
 
         # shape : [?, num_boxes, 4] -> [?, num_boxes]
-        return tf.reduce_sum(l1_loss, axis=-1) * pos
+        return tf.math.reduce_sum(l1_loss, axis=-1) * pos
 
     # bbox의 class에 대한 loss 계산
     def _softmax_Loss(self, y_true, y_pred, pos, neg):
-        y_pred = tf.maximum(tf.minimum(y_pred, 1 - 1e-15), 1e-15)
+        # y_pred = tf.math.maximum(tf.math.minimum(y_pred, 1 - 1e-15), 1e-15)
 
         # positive는 IOU를 합격한 박스 1 또는 0
         # 맞춘 만큼 loss값을 감소시킴.
-        pos_loss = (tf.log(tf.exp(y_pred) / (tf.reduce_sum(tf.exp(y_pred), axis=-1))))
+        pos_loss = (tf.math.log(tf.math.divide(tf.exp(y_pred),
+                                               tf.math.reduce_sum(tf.math.exp(y_pred), axis=-1, keepdims=True))))
 
         # IOU는 불합격했지만, 클래스가 있을 확률이 높은 박스 1 또는 0
         # 맞춘 만큼 loss를 감소시킴
-        neg_loss = tf.log(y_pred)
+        neg_loss = tf.math.log(y_pred) # (2, 938, 21)
 
-        softmax_loss = -tf.reduce_sum((y_true * (pos_loss + neg_loss)), axis=- 1) * (pos + neg)
+        pos = tf.convert_to_tensor(pos, dtype=tf.float32)
+        neg = tf.convert_to_tensor(neg, dtype=tf.float32)
+
+        softmax_loss = -tf.math.reduce_sum((y_true * (pos_loss + neg_loss)), axis=-1) * (pos + neg)
 
         return softmax_loss
 
@@ -58,9 +64,9 @@ class MultiboxLoss(object):
             @configration of y_pred + y_true:
                 y_pred[:, :, :4]:
                     bbox_loc
-                y_pred[:, :, 4:8]:
+                y_pred[:, :, 4:-4]:
                     class_confidence
-                y_pred[:, :, 10:]:
+                y_pred[:, :, 4:]:
                     mbox_priorbox(cx, cy, w, h)
         """
         # default_boxes shape : (batch_size, 938, 4)
@@ -105,13 +111,15 @@ class MultiboxLoss(object):
 
         ex_gt_labels_to_categorical = to_categorical(ex_gt_labels)
         # 클래스에 대한 손실 함수
+        print(ex_gt_labels_to_categorical.shape, y_pred.shape)
+        print(len(positives), len(negatives))
         conf_loss = self._softmax_Loss(ex_gt_labels_to_categorical,
-                                       y_pred[:, :, 4:8],
+                                       y_pred[:, :, 4:-4],
                                        positives, negatives)  # [?, 984]
 
         # 박스 위치에 대한 손실 함수
-        loc_loss = self._smooth_L1_Loss(y_true[:, :, :4],
-                                        y_pred[:, :, 4], positives)  # [?, 984]
+        loc_loss = self._smooth_L1_Loss(ex_gt_boxes,
+                                        y_pred[:, :, :4], positives)  # [?, 984]
 
         total_loss = tf.reduce_sum(conf_loss + loc_loss)
 

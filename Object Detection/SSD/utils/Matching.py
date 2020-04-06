@@ -120,7 +120,7 @@ class Matcher:
 
         # matches는 None이거나 Box instance가 들어있는 array이다.
         for bbox_loc, bbox_label in zip(matches_bbox, matches_label):
-            print(bbox_loc, bbox_label)
+            # print(bbox_loc, bbox_label)
             # 박스가 없으면
             if bbox_loc is None:
                 pos_list.append(0)

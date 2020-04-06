@@ -77,6 +77,7 @@ for i in image_ds:
 for j in value_ds:
     value = j
 
+
 # make model
 input_shape = (224, 224, 3)
 model = SSD(input_shape, num_classes = NUM_CLASSES)
