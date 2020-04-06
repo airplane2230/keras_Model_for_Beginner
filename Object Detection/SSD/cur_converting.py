@@ -9,7 +9,7 @@ from model.SSD_model import SSD
 from loss.MultiBoxLoss import MultiboxLoss
 
 NUM_CLASSES = 21
-BATCH_SIZE = 8
+BATCH_SIZE = 2
 IMAGE_SIZE = 224
 
 # path
@@ -67,7 +67,7 @@ def get_imageLabel(image_dir):
     return image
 
 image_ds = image_dir_ds.map(get_imageLabel)
-image_ds = image_ds.batch(8)
+image_ds = image_ds.batch(BATCH_SIZE)
 
 image = None
 value = None
@@ -89,3 +89,4 @@ with tf.GradientTape() as tape:
     # value shape: (Object Number, None)
     predictions = model(image)
     loss = train_loss.comute_loss(value, predictions)
+    print('get loss success')

@@ -3,8 +3,6 @@ import tensorflow as tf
 
 from utils.computation import jaccard
 
-classes = 21
-
 class Matcher:
     def __init__(self, num_boxes, default_boxes):
         """
@@ -15,6 +13,7 @@ class Matcher:
                 """
         self.num_boxes = num_boxes
         self.default_boxes = default_boxes
+        self.classes = tf.cast(21, tf.float32)
 
     def matching(self, pred_confs, pred_locs, actual_labels, actual_locs, batch_size):
         """
@@ -43,104 +42,102 @@ class Matcher:
         """
         self.pos = 0
         self.neg = 0
-        pos_list = []
-        neg_list = []
-        expanded_gt_labels = []
-        expanded_gt_locs = []
 
-        matches = []
-        matched = []
+        matches_label = []
+        matches_bbox = []
+
         # pred_confs.shsape, pred_locs.shape, len(actual_locs), len(actual_labels)
         # (938, 21) (938, 4) 2 2
         print('In Matcher1!===============================')
         for _ in range(self.num_boxes):
-            matches.append(None)  # len is 938
+            matches_label.append(None)
+            matches_bbox.append(None)
 
+        # for-loop 1: 이미지에서 실제 측정되어 있는 레이블과 bbox의 좌표를 가지고오고,
+        # for-loop 2: 만들어진 938개의 bbox를 gt_box와 비교하여 자카드 연산을 수행한다.
+        # 내가 정한 default factor 0.5보다 높으면 해당 bbox를 채택하고,
+        # matches에
         for gt_label, gt_box in zip(actual_labels, actual_locs):
-            for i in range(len(matches)):
+            for i in range(len(matches_label)):
                 # gt_box: ground_truth box location (4,)
                 # self.default_boxes[batch_size, i]: default box location (4,)
                 # Computation jaccard with gt_box and default_box
                 jacc = jaccard(gt_box, self.default_boxes[batch_size, i])  # self.default_boxes[batch_size, i] -> (4, )
-                if (tf.math.greater_equal(jacc, 0.5)):
-                    matches[i] = 4
+                if tf.math.greater_equal(jacc, 0.5):
+                    matches_label[i] = gt_label
+                    matches_bbox[i] = gt_box
                     self.pos += 1
-                    matched.append(gt_label)
 
         print('In Matcher2!===============================')
 
-        # neg, pos 비율 값
-        neg_pos = 5
-
-        max_length = tf.multiply(neg_pos, self.pos)
-
         loss_confs = []
-        loss_conf_cnt = 0
 
-        # pred_confs.shape : (938, 21)
+        # pred_confs.shape: (938, 21)
+        # pred_confs's element: (21,)
         # 각 default box의 confidence에 대해서
-        for i in range(pred_confs.get_shape()[0]):
-            pred_conf = pred_confs[i]  # (21, )
+        for pred_conf in pred_confs:
             # 각 예측 값을 소프트 맥스함수를 통해 해당 클래스 인덱스로 치환한다.
             # (num_box, num_class) -> (num_box, )
             pred = tf.reduce_max(
                 tf.divide(tf.math.exp(pred_conf), (tf.reduce_sum(tf.math.exp(pred_conf)) + 1e-5)))  # (), Tensor
             loss_confs.append(pred)
-            loss_conf_cnt += 1
 
-        # loss_conf_cnt : 938, int
-        # max_length : tf.multimul(:)
+        # negative, positive ratio of value
+        neg_pos = 5
+        max_length = tf.multiply(neg_pos, self.pos)
+        size = tf.math.minimum(pred_confs.shape[0], max_length)
 
-        size = tf.math.minimum(loss_conf_cnt, neg_pos * self.pos)  # Tensor("Minimum:0", shape=(), dtype=int32)
-
-        # TopKV2(values=<tf.Tensor 'TopKV2:0' shape=(None,) dtype=float64>, indices=<tf.Tensor 'TopKV2:1' shape=(None,) dtype=int32>)
-        indices = tf.math.top_k(loss_confs, size)  # class : <clas`s 'tensorflow.python.ops.gen_nn_ops.TopKV2'>
+        indices = tf.math.top_k(loss_confs, size)
         indice_values = indices[1]
-        print(indice_values.__class__, indice_values.dtype, indice_values.shape, indice_values)
+        # print(indice_values.__class__, indice_values.dtype, indice_values.shape, indice_values)
         print('In Matcher3!===============================')
 
-        for i in range(indice_values.get_shape()[0]):
-            # i : 0 ~
+        for i in range(indice_values.shape[0]):
             temp_index = indice_values[i]
-            print(temp_index, 'temp_index')
 
             # negative를 적당히 사용해야 되는데,
             # positive * neg_pos 비율보다 높으면 좋지 않으므로 break 시킨다.
             if self.neg > self.pos * neg_pos:
                 break
 
-            matches_index = tf.gather(matches, temp_index)
-            pred_confs_index = tf.gather(pred_confs, temp_index)
-            pred_conf = tf.argmax(pred_confs_index)
+            # matches_index = tf.gather(matches, temp_index) # label
+            pred_confs_index = tf.gather(pred_confs, temp_index) # label's confidence
+            pred_conf = tf.cast(tf.argmax(pred_confs[temp_index]), tf.float32)
 
             # classes - 1은 배경을 의미함.
             # 박스가 안겹치면서 배경이 아닌 경우
             # False Negative -> 박스가 없다고 판단했지만 객체가 있을 수도 있는 부분 -하종우
-            if (matches_index is None and (classes - 1 != pred_conf)):
-                matches[temp_index] = 1
+            if (matches_bbox[temp_index] is None) and (tf.math.not_equal(self.classes - 1.0, pred_conf)):
+                matches_bbox[temp_index] = 0
                 self.neg += 1
 
         print('In Matcher4!===============================')
 
+        pos_list = []
+        neg_list = []
+        expanded_gt_labels = []
+        expanded_gt_locs = []
+
         # matches는 None이거나 Box instance가 들어있는 array이다.
-        for box in matches:
+        for bbox_loc, bbox_label in zip(matches_bbox, matches_label):
+            print(bbox_loc, bbox_label)
             # 박스가 없으면
-            if box is None:
+            if bbox_loc is None:
                 pos_list.append(0)
                 neg_list.append(0)
-                expanded_gt_labels.append(classes - 1)
+                expanded_gt_labels.append(self.classes - 1)
                 expanded_gt_locs.append([0] * 4)
             # False Negative 부분
-            elif (0 == len(box.loc)):
+            elif isinstance(bbox_loc, int):
                 pos_list.append(0)
                 neg_list.append(1)
-                expanded_gt_labels.append(classes - 1)
+                expanded_gt_labels.append(self.classes - 1)
                 expanded_gt_locs.append([0] * 4)
             # 박스가 존재한다면
             else:
                 pos_list.append(1)
                 neg_list.append(0)
-                expanded_gt_labels.append(box.index)
-                expanded_gt_locs.append(box.loc)
+                expanded_gt_labels.append(bbox_label)
+                expanded_gt_locs.append(bbox_loc)
 
         return pos_list, neg_list, expanded_gt_labels, expanded_gt_locs
