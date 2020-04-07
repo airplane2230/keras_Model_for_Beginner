@@ -77,7 +77,6 @@ for i in image_ds:
 for j in value_ds:
     value = j
 
-
 # make model
 input_shape = (224, 224, 3)
 model = SSD(input_shape, num_classes = NUM_CLASSES)
@@ -90,4 +89,8 @@ with tf.GradientTape() as tape:
     # value shape: (Object Number, None)
     predictions = model(image)
     loss = train_loss.comute_loss(value, predictions)
-    print('get loss success')
+
+gradients = tape.gradient(loss, model.trainable_variables)
+optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+print(loss)
