@@ -3,6 +3,7 @@
 
 ## Classification
 + DenseNet(simply)
++ SqueezeNet with Simple-bypass
 
 
 ## Object Detection
