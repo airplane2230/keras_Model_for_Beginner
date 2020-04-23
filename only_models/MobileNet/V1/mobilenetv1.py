@@ -48,9 +48,9 @@ def MobileNetV1(data_shape):
         x = depthwiseconv_block(x, n_filters, strides, alpha=1.0)
 
     x = GlobalAveragePooling2D(name = 'GAP')(x)
-    x = Dense(1000, activation = 'softmax', name='outputs')(x)
+    outputs = Dense(1000, activation = 'softmax', name='outputs')(x)
 
-    model = Model(inputs = inputs, outputs = x)
+    model = Model(inputs = inputs, outputs = outputs)
 
     return model
 

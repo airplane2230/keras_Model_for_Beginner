@@ -12,7 +12,6 @@ def conv_block(inputs, n_filters, kernel_size, strides):
 
 def bottleneck(inputs, n_filters, kernel_size, strides, t, is_add = False):
     exp_filters = int(inputs.shape[-1] * t)
-    print(exp_filters, n_filters, inputs.shape[-1], inputs.shape)
 
     x = conv_block(inputs, exp_filters, (1, 1), (1, 1))
 
@@ -25,9 +24,6 @@ def bottleneck(inputs, n_filters, kernel_size, strides, t, is_add = False):
 
     if(is_add):
         x = Add()([x, inputs])
-
-    print(inputs.shape, x.shape)
-    print('\n')
 
     return x
 
