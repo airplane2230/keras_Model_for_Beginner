@@ -1,21 +1,36 @@
 import tensorflow as tf
-import keras
-from keras import backend as K
-from keras.models import Model
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Model
 
-from keras.layers import Conv2D, BatchNormalization, ReLU, DepthwiseConv2D, Activation, Input, Add
-from keras.layers import GlobalAveragePooling2D, Reshape, Dense, multiply, Softmax, Flatten
+from tensorflow.keras.layers import Conv2D, BatchNormalization, ReLU, DepthwiseConv2D, Activation, Input, Add
+from tensorflow.keras.layers import GlobalAveragePooling2D, Reshape, Dense, multiply, Softmax, Flatten
 
 from keras_radam import RAdam
-from keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam
 
-from keras.utils.generic_utils import get_custom_objects
+from tensorflow.keras.utils.generic_utils import get_custom_objects
+
+def Hswish(x):
+    return x * tf.nn.relu6(x + 3) / 6
+
+def mish(x):
+    return x * K.tanh(K.softplus(x))
+
+get_custom_objects().update({'custom_activation': Activation(Hswish)})
 
 def conv2d_block(inputs, filters, kernel, strides, is_use_bias = False, padding = 'same',
                 activation = 'RE', name = None):
     x = Conv2D(filters, kernel, strides = strides, padding = padding, use_bias = is_use_bias)(inputs)
     x = BatchNormalization()(x)
-    x = ReLU(name=name)(x)
+
+    if activation == 'RE':
+        x = ReLU(name=name)(x)
+    elif activation == 'HS':
+        x = Activation(Hswish, name=name)(x)
+    elif activation == 'MS':
+        x = Activation(mish, name = name)(x)
+    else:
+        raise NotImplementedError
 
     return x
 
@@ -28,7 +43,14 @@ def depthwise_block(inputs, kernel = (3, 3), strides = (1, 1), activation = 'RE'
     if is_use_se:
         x = se_block(x)
 
-    x = ReLU()(x)
+    if activation == 'RE':
+        x = ReLU()(x)
+    elif activation == 'HS':
+        x = Activation(Hswish)(x)
+    elif activation == 'MS':
+        x = Activation(mish)(x)
+    else:
+        raise NotImplementedError
 
     return x
 
@@ -87,8 +109,9 @@ def bottleneck_block(inputs, out_dim, kernel, strides, expansion_dim,
     return x
 
 def mobilenetv3(input_size = 224, output_type = 3, model_config = None,
-                pooling_type = 'avg',
+                pooling_type = 'avg', activation = 'HS',
                 classification_type = None,
+               optimizer_type = 'adam',
                lr = None):
     inputs = Input(shape = (input_size, input_size, 3))
 
@@ -127,5 +150,15 @@ def mobilenetv3(input_size = 224, output_type = 3, model_config = None,
         net = Activation('sigmoid')(net)
 
     model = Model(inputs=inputs, outputs=net)
+
+    if optimizer_type == 'adam':
+        optimizer = Adam(lr = lr)
+    else:
+        optimizer = RAdam(learning_rate = lr)
+
+    loss = 'binary_crossentropy' if classification_type == 'binary' else 'categorical_crossentropy'
+    metrics = [keras.metrics.binary_accuracy] if classification_type == 'binary' else [keras.metrics.categorical_accuracy]
+
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     return model
