@@ -1,164 +1,98 @@
-import tensorflow as tf
-from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.layers import Conv2D, BatchNormalization, DepthwiseConv2D, Add
+from tensorflow.keras.layers import GlobalAveragePooling2D, Multiply, Reshape
+from tensorflow.keras.activations import relu
 from tensorflow.keras.models import Model
 
-from tensorflow.keras.layers import Conv2D, BatchNormalization, ReLU, DepthwiseConv2D, Activation, Input, Add
-from tensorflow.keras.layers import GlobalAveragePooling2D, Reshape, Dense, multiply, Softmax, Flatten
+def hard_swish(x):
+    return x * relu(x + 3.0, max_value=6.0) / 6.0
 
-from keras_radam import RAdam
-from tensorflow.keras.optimizers import Adam
+def relu6(x):
+    return relu(x, max_value=6.0)
 
-from tensorflow.keras.utils.generic_utils import get_custom_objects
+def activations(inputs, nl):
+    if(nl == "HS"):
+        x = hard_swish(inputs)
+    elif(nl == "RE"):
+        x = relu6(inputs)
 
-def Hswish(x):
-    return x * tf.nn.relu6(x + 3) / 6
+    return x
 
-def mish(x):
-    return x * K.tanh(K.softplus(x))
 
-get_custom_objects().update({'custom_activation': Activation(Hswish)})
+def conv_block(inputs, n_filters, kernel_size, strides, nl):
+    x = Conv2D(n_filters, kernel_size, padding = 'same', strides=strides)(inputs)
+    x = BatchNormalization()(x)
+    x = activations(x, nl)
 
-def conv2d_block(inputs, filters, kernel, strides, is_use_bias = False, padding = 'same',
-                activation = 'RE', name = None):
-    x = Conv2D(filters, kernel, strides = strides, padding = padding, use_bias = is_use_bias)(inputs)
+    return x
+
+def squeeze(inputs):
+    input_channels = int(inputs.shape[-1])
+
+    x = GlobalAveragePooling2D()(inputs)
+    x = Dense(input_channels, activation = 'relu')(x)
+    x = Dense(input_channels, activation = 'hard_sigmoid')(x)
+    x = Reshape((1, 1, input_channels))(x)
+    x = Multiply()([inputs, x])
+
+    return x
+
+def bottleneck(inputs, n_filters, kernel_size, strides, t, nl, is_add = False, is_squeeze = False):
+    exp_filters = int(inputs.shape[-1] * t)
+
+    x = conv_block(inputs, t, (1, 1), strides=1, nl=nl)
+
+    x = DepthwiseConv2D(kernel_size=kernel_size, strides=(strides, strides), padding='same')(x)
+    x = BatchNormalization()(x)
+    x = activations(x, nl)
+
+    if is_squeeze:
+        x = squeeze(x)
+
+    x = Conv2D(n_filters, (1, 1), strides = (1, 1), padding = 'same')(x)
     x = BatchNormalization()(x)
 
-    if activation == 'RE':
-        x = ReLU(name=name)(x)
-    elif activation == 'HS':
-        x = Activation(Hswish, name=name)(x)
-    elif activation == 'MS':
-        x = Activation(mish, name = name)(x)
-    else:
-        raise NotImplementedError
+    if(is_add):
+        x = Add()([x, inputs])
 
     return x
 
-def depthwise_block(inputs, kernel = (3, 3), strides = (1, 1), activation = 'RE',
-                   is_use_se = True):
-    x = DepthwiseConv2D(kernel_size = kernel, strides = strides, depth_multiplier = 1,
-                       padding = 'same')(inputs)
-    x = BatchNormalization()(x)
+# MobilNetV3 - Small
+def MobileNetV3(data_shape, classes = 1000, include_top = False):
+    inputs = Input(data_shape)
 
-    if is_use_se:
-        x = se_block(x)
+    x = conv_block(inputs, 16, (3, 3), (2, 2), nl = "HS")
 
-    if activation == 'RE':
-        x = ReLU()(x)
-    elif activation == 'HS':
-        x = Activation(Hswish)(x)
-    elif activation == 'MS':
-        x = Activation(mish)(x)
-    else:
-        raise NotImplementedError
+    x = bottleneck(x, 16, (3, 3), strides=1, t=16, nl="RE", is_squeeze=False)
+    x = bottleneck(x, 24, (3, 3), strides=2, t=64, nl="RE", is_squeeze=False)
+    x = bottleneck(x, 24, (3, 3), strides=1, t=72, nl="RE", is_squeeze=False)
+    x = bottleneck(x, 40, (5, 5), strides=2, t=72, nl="RE", is_squeeze=True)
+    x = bottleneck(x, 40, (5, 5), strides=1, t=120, nl="RE", is_squeeze=True)
+    x = bottleneck(x, 40, (5, 5), strides=1, t=120, nl="RE", is_squeeze=True)
+    x = bottleneck(x, 80, (3, 3), strides=2, t=240, nl="HS", is_squeeze=False)
+    x = bottleneck(x, 80, (3, 3), strides=1, t=200, nl="HS", is_squeeze=False)
+    x = bottleneck(x, 80, (3, 3), strides=1, t=184, nl="HS", is_squeeze=False)
+    x = bottleneck(x, 80, (3, 3), strides=1, t=184, nl="HS", is_squeeze=False)
+    x = bottleneck(x, 112, (3, 3), strides=1, t=480, nl="HS", is_squeeze=True)
+    x = bottleneck(x, 112, (3, 3), strides=1, t=672, nl="HS", is_squeeze=True)
+    x = bottleneck(x, 160, (5, 5), strides=2, t=672, nl="HS", is_squeeze=True)
+    x = bottleneck(x, 160, (5, 5), strides=1, t=960, nl="HS", is_squeeze=True)
+    x = bottleneck(x, 160, (5, 5), strides=1, t=960, nl="HS", is_squeeze=True)
 
-    return x
+    x = conv_block(x, 960, (1, 1), (1, 1), nl = "HS")
+    x = GlobalAveragePooling2D()(x)
+    x = Reshape((1, 1, 960))(x)
+    x = Conv2D(1280, (1, 1), (1, 1))(x)
+    x = activations(x, "HS")
 
-def global_depthwise_block(inputs):
-    assert inputs.shape[1] == inputs.shape[2]
+    if include_top:
+        x = Conv2D(classes, (1, 1), padding='same', activation = 'softmax')(x)
+        x = Reshape((classes, ))(x)
 
-    kernel_size = inputs.shape[1]
-    x = DepthwiseConv2D((kernel_size, kernel_size), strides=(1, 1),
-                        depth_multiplier=1, padding='valid')(inputs)
 
-    return x
-
-# squeeze and excite
-def se_block(inputs, ratio = 4, pooling_type = 'avg'):
-    filters = inputs._keras_shape[-1]
-    se_shape = (1, 1, filters)
-
-    if pooling_type == 'avg':
-        se = GlobalAveragePooling2D()(inputs)
-    elif pooling_type == 'depthwise':
-        se = global_depthwise_block(inputs)
-    else:
-        raise NotImplementedError
-
-    se = Reshape(se_shape)(se)
-    se = Dense(filters // ratio, activation='relu', kernel_initializer='he_normal', use_bias=False)(se)
-    se = Dense(filters, activation='hard_sigmoid', kernel_initializer='he_normal', use_bias=False)(se)
-
-    return multiply([inputs, se])
-
-def bottleneck_block(inputs, out_dim, kernel, strides, expansion_dim,
-                    is_use_bias = False, shortcut = True, is_use_se = True,
-                    activation = 'RE', *args):
-    with tf.name_scope('bottleneck_block'):
-        bottleneck_dim = expansion_dim
-
-        # pointwise
-        x = conv2d_block(inputs, bottleneck_dim, kernel = (1, 1),
-                         strides = (1, 1), is_use_bias = is_use_bias, activation = activation)
-        # depthwise
-        x = depthwise_block(x, kernel = kernel, strides = strides, is_use_se = is_use_se,
-                           activation = activation)
-
-        # pointwise
-        x = Conv2D(out_dim, (1, 1), strides = (1, 1), padding = 'same')(x)
-        x = BatchNormalization()(x)
-
-        if shortcut and strides == (1, 1):
-            in_dim = K.int_shape(inputs)[:-1]
-            if in_dim != out_dim:
-                ins = Conv2D(out_dim, (1, 1), strides = (1, 1), padding = 'same')(inputs)
-                x = Add()([x, ins])
-            else:
-                x = Add()([x, ins])
-
-    return x
-
-def mobilenetv3(input_size = 224, output_type = 3, model_config = None,
-                pooling_type = 'avg', activation = 'HS',
-                classification_type = None,
-               optimizer_type = 'adam',
-               lr = None):
-    inputs = Input(shape = (input_size, input_size, 3))
-
-    net = conv2d_block(inputs, 16, kernel = (3, 3), strides = (2, 2), is_use_bias = False,
-                      padding = 'same', activation = activation)
-
-    config_list = model_config
-
-    for config in config_list:
-        net = bottleneck_block(net, *config)
-
-    # ** final layers
-    net = conv2d_block(net, 480, kernel=(3, 3), strides=(1, 1),
-                         is_use_bias=True, padding='same', activation = activation, name='output_map')
-
-    if pooling_type == 'avg':
-        net = GlobalAveragePooling2D()(net)
-    elif pooling_type == 'depthwise':
-        net = global_depthwise_block(net)
-    else:
-        raise NotImplementedError
-
-    # ** shape=(None, channel) --> shape(1, 1, channel)
-    pooled_shape = (1, 1, net._keras_shape[-1])
-
-    net = Reshape(pooled_shape)(net)
-    # net = Conv2D(480, (1, 1), strides=(1, 1), padding='valid', use_bias=True)(net)
-
-    if(classification_type == 'categorical'):
-        net = Conv2D(output_type, (1, 1), strides=(1, 1), padding='valid', use_bias=True)(net)
-        net = Flatten()(net)
-        net = Activation('softmax')(net)
-    elif(classification_type == 'binary'):
-        net = Conv2D(1, (1, 1), strides=(1, 1))(net)
-        net = Flatten()(net)
-        net = Activation('sigmoid')(net)
-
-    model = Model(inputs=inputs, outputs=net)
-
-    if optimizer_type == 'adam':
-        optimizer = Adam(lr = lr)
-    else:
-        optimizer = RAdam(learning_rate = lr)
-
-    loss = 'binary_crossentropy' if classification_type == 'binary' else 'categorical_crossentropy'
-    metrics = [keras.metrics.binary_accuracy] if classification_type == 'binary' else [keras.metrics.categorical_accuracy]
-
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    model = Model(inputs = inputs, outputs = x)
 
     return model
+
+model = MobileNetV3((224, 224, 3))
+model.summary()
