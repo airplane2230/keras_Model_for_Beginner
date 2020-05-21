@@ -18,7 +18,6 @@ def activations(inputs, nl):
 
     return x
 
-
 def conv_block(inputs, n_filters, kernel_size, strides, nl):
     x = Conv2D(n_filters, kernel_size, padding = 'same', strides=strides)(inputs)
     x = BatchNormalization()(x)
@@ -88,7 +87,6 @@ def MobileNetV3(data_shape, classes = 1000, include_top = False):
     if include_top:
         x = Conv2D(classes, (1, 1), padding='same', activation = 'softmax')(x)
         x = Reshape((classes, ))(x)
-
 
     model = Model(inputs = inputs, outputs = x)
 
