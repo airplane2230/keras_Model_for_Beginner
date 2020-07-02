@@ -7,7 +7,8 @@
 + SqueezeNet with Simple-bypass
 + UNet
 + MobileNet V1, V2, V3
-
++ Xception
++ EfficientNet
 
 ## Object Detection
 + SSD(continue): https://arxiv.org/pdf/1512.02325.pdf
