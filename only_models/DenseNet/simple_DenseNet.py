@@ -63,9 +63,9 @@ def DenseNet(data_shape, n_filters, classes, growth_rate):
     final_dense = dense_block(_transition, layer_list[-1], n_filters)
 
     x = GlobalAveragePooling2D()(final_dense)
-    x = Dense(classes, activation='softmax', name='outputs')(x)
+    outputs = Dense(classes, activation='softmax', name='outputs')(x)
 
-    model = Model(inputs=inputs, outputs=x)
+    model = Model(inputs=inputs, outputs=outputs)
 
     return model
 

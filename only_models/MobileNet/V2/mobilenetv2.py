@@ -56,7 +56,7 @@ def MobileNetV2(data_shape):
 
     outputs = conv_block(x, 1280, (1, 1), (1, 1))
 
-    model = Model(inputs = inputs, outputs = outputs)
+    model = Model(inputs=inputs, outputs=outputs)
 
     return model
 

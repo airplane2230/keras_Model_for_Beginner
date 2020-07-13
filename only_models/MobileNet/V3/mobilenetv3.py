@@ -88,7 +88,7 @@ def MobileNetV3(data_shape, classes = 1000, include_top = False):
         x = Conv2D(classes, (1, 1), padding='same', activation = 'softmax')(x)
         x = Reshape((classes, ))(x)
 
-    model = Model(inputs = inputs, outputs = x)
+    model = Model(inputs=inputs, outputs=x)
 
     return model
 

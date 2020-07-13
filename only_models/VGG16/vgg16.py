@@ -10,7 +10,7 @@ def layer_block(x, num_filter, kernel_size = 3, s = 1, padding = 'same', iter_nu
 
     return x
 
-def Vgg16(data_shape, include_top = True):
+def VGG16(data_shape, include_top = True):
     inputs = Input(shape=data_shape)
 
     x = layer_block(inputs, 64)
@@ -29,5 +29,5 @@ def Vgg16(data_shape, include_top = True):
 
     return model
 
-vgg16 = Vgg16((224, 224, 3), include_top=True)
+vgg16 = VGG16((224, 224, 3), include_top=True)
 vgg16.summary()

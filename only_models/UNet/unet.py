@@ -29,8 +29,8 @@ def up(inputs, merged_inputs, n_filters,
     return x
 
 
-def Unet(width, height, channel):
-    inputs = Input(shape=(width, height, channel))
+def Unet(data_shape):
+    inputs = Input(shape=data_shape)
 
     conv1, max_pool1 = down(inputs, 64) # (224, 224, 64)
     conv2, max_pool2 = down(max_pool1, 128) # (112, 112, 128)

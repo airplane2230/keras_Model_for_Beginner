@@ -1,7 +1,7 @@
 # Iandola, F. N., Han, S., Moskewicz, M. W., Ashraf, K., Dally, W. J., & Keutzer, K. (2016).
 # SqueezeNet: AlexNet-level accuracy with 50x fewer parameters and< 0.5 MB model size. arXiv preprint arXiv:1602.07360.
 from tensorflow.keras import backend as K
-from tensorflow.keras.layers import Input, Convolution2D, MaxPooling2D, Activation, concatenate, Dropout, Add
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Activation, concatenate, Dropout, Add
 from tensorflow.keras.layers import GlobalAveragePooling2D, Dense, BatchNormalization, LeakyReLU, ReLU
 from tensorflow.keras.models import Model
 
@@ -23,13 +23,13 @@ def fire_module(x, fire_id, SR=0.125):
     si = np.int(SR * (e1x1 + e3x3))
     s_id = 'fire' + str(fire_id + 1) + '/'
 
-    x = Convolution2D(si, (1, 1), padding='valid', name=s_id + sq1x1, kernel_initializer = 'he_normal')(x)
+    x = Conv2D(si, (1, 1), padding='valid', name=s_id + sq1x1, kernel_initializer = 'he_normal')(x)
     x = Activation('relu', name=s_id + 'relu' + sq1x1)(x)
 
-    left = Convolution2D(e1x1, (1, 1), padding='valid', kernel_initializer='he_normal', name=s_id + exp1x1)(x)
+    left = Conv2D(e1x1, (1, 1), padding='valid', kernel_initializer='he_normal', name=s_id + exp1x1)(x)
     left = Activation('relu', name=s_id + 'relu' + exp1x1)(left)
 
-    right = Convolution2D(e3x3, (3, 3), padding='same', kernel_initializer='he_normal', name=s_id + exp3x3)(x)
+    right = Conv2D(e3x3, (3, 3), padding='same', kernel_initializer='he_normal', name=s_id + exp3x3)(x)
     right = Activation('relu', name=s_id + 'relu' + exp3x3)(right)
 
     x = concatenate([left, right], axis=3, name=s_id + 'concat')
@@ -41,7 +41,7 @@ def fire_module(x, fire_id, SR=0.125):
 def SqueezeNet(input_shape=(224, 224, 3), SR=0.125, output_type = 1000):
     inputs = Input(input_shape, name='inputs')
 
-    conv1 = Convolution2D(96, (7, 7), strides=(2, 2), padding='same', name='conv1',
+    conv1 = Conv2D(96, (7, 7), strides=(2, 2), padding='same', name='conv1',
                           kernel_initializer='he_normal')(inputs)
     conv1 = Activation('relu', name='relu_conv1')(conv1)
     maxpool1 = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), name='pool1')(conv1)
@@ -65,7 +65,7 @@ def SqueezeNet(input_shape=(224, 224, 3), SR=0.125, output_type = 1000):
     add_4 = Add()([maxpool8, fire9])
 
     x = Dropout(0.5, name='drop9')(add_4)
-    x = Convolution2D(256, (1, 1), padding='valid', kernel_initializer='he_normal', name='conv10')(x)
+    x = Conv2D(256, (1, 1), padding='valid', kernel_initializer='he_normal', name='conv10')(x)
     x = Activation('relu', name='relu_conv10')(x)
     x = GlobalAveragePooling2D()(x)
 
@@ -79,11 +79,11 @@ def SqueezeNet(input_shape=(224, 224, 3), SR=0.125, output_type = 1000):
 
     x = Dense(output_type, name='dense_3', kernel_initializer='he_normal' )(x)
     x = BatchNormalization()(x)
-    x = Activation('softmax')(x)
+    outputs = Activation('softmax')(x)
 
-    model = Model(inputs=inputs, outputs=x, name='squeezenet')
+    model = Model(inputs=inputs, outputs=outputs, name='squeezenet')
 
     return model
 
-# model = SqueezeNet()
-# model.summary()
+model = SqueezeNet((224, 224, 3))
+model.summary()

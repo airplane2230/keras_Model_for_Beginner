@@ -5,13 +5,11 @@ from tensorflow.keras.models import Model
 def depthwiseconv_block(inputs, n_filters, strides, alpha = 1.0):
     n_filters = int(n_filters * alpha)
 
-    x = DepthwiseConv2D(kernel_size=(3, 3), strides=strides,
-                        padding='same')(inputs)
+    x = DepthwiseConv2D(kernel_size=(3, 3), strides=strides, padding='same')(inputs)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(n_filters, kernel_size=(1, 1), strides=(1, 1),
-               padding='same')(x)
+    x = Conv2D(n_filters, kernel_size=(1, 1), strides=(1, 1), padding='same')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
@@ -20,8 +18,7 @@ def depthwiseconv_block(inputs, n_filters, strides, alpha = 1.0):
 def conv_block(inputs, n_filters, strides, alpha = 1.0):
     n_filters = int(n_filters * alpha)
 
-    x = Conv2D(n_filters, kernel_size=(3, 3), strides=strides,
-               padding = 'same')(inputs)
+    x = Conv2D(n_filters, kernel_size=(3, 3), strides=strides, padding = 'same')(inputs)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
@@ -50,9 +47,9 @@ def MobileNetV1(data_shape):
     x = GlobalAveragePooling2D(name = 'GAP')(x)
     outputs = Dense(1000, activation = 'softmax', name='outputs')(x)
 
-    model = Model(inputs = inputs, outputs = outputs)
+    model = Model(inputs=inputs, outputs=outputs)
 
     return model
 
-# model = MobileNetV1((224, 224, 3))
-# model.summary()
+model = MobileNetV1((224, 224, 3))
+model.summary()

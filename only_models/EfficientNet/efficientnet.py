@@ -126,9 +126,9 @@ def EfficientNet(data_shape, width_coef, depth_div, min_depth, block_args_list,
     x = Conv2D(round_filters(1280, width_coef, depth_div, min_depth),
                (1, 1), strides=1, padding = 'same')(x)
     x = BatchNormalization()(x)
-    x = tf.nn.swish(x)
+    outputs = tf.nn.swish(x)
 
-    model = Model(inputs = inputs, outputs = x)
+    model = Model(inputs=inputs, outputs=outputs)
 
     return model
 
@@ -142,6 +142,7 @@ block_args_list = [
     EffArgs(192, 320, 3, 1, 1, 0.25, 6)
 ]
 
-model = EfficientNet((224, 224, 3), width_coef=1.0, depth_div=1.0,
-                     min_depth=None, block_args_list = block_args_list, drop_connect_rate=0.)
+model = EfficientNet((224, 224, 3), width_coef=1.0,
+                     depth_div=1.0, min_depth=None,
+                     block_args_list = block_args_list, drop_connect_rate=0.)
 model.summary()
