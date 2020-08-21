@@ -48,7 +48,7 @@ class Matcher:
 
         # pred_confs.shsape, pred_locs.shape, len(actual_locs), len(actual_labels)
         # (938, 21) (938, 4) 2 2
-        print('In Matcher1!===============================')
+        # print('In Matcher1!===============================')
         for _ in range(self.num_boxes):
             matches_label.append(None)
             matches_bbox.append(None)
@@ -68,7 +68,7 @@ class Matcher:
                     matches_bbox[i] = gt_box
                     self.pos += 1
 
-        print('In Matcher2!===============================')
+        # print('In Matcher2!===============================')
 
         loss_confs = []
 
@@ -90,7 +90,7 @@ class Matcher:
         indices = tf.math.top_k(loss_confs, size)
         indice_values = indices[1]
         # print(indice_values.__class__, indice_values.dtype, indice_values.shape, indice_values)
-        print('In Matcher3!===============================')
+        # print('In Matcher3!===============================')
 
         for i in range(indice_values.shape[0]):
             temp_index = indice_values[i]
@@ -111,7 +111,7 @@ class Matcher:
                 matches_bbox[temp_index] = 0
                 self.neg += 1
 
-        print('In Matcher4!===============================')
+        # print('In Matcher4!===============================')
 
         pos_list = []
         neg_list = []
