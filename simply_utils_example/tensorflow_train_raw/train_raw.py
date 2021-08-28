@@ -1,49 +1,14 @@
 import tensorflow as tf
 import numpy as np
 
-tf.keras.backend.set_floatx('float64')
-
-class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self, init_lr, warmup_epoch,
-                 decay_fn
-                 ):
-        self.init_lr = init_lr
-        self.decay_fn = decay_fn
-        self.warmup_epoch = warmup_epoch
-        self.lr = 1e-4
-        
-    def get_config(self):
-        # not working
-        config = {
-            'learning_rate': self.lr
-        }
-        
-        return config
-    
-    # No Override
-    def on_epoch_begin(self, epoch, logs = None):
-        global_epoch = tf.cast(epoch + 1, tf.float64)
-        warmup_epoch_float = tf.cast(self.warmup_epoch, tf.float64)
-        
-        lr = tf.cond(
-            global_epoch < warmup_epoch_float,
-            lambda: tf.cast(self.init_lr * (global_epoch / warmup_epoch_float), tf.float64),
-            lambda: tf.cast(self.decay_fn(epoch - warmup_epoch_float), tf.float64)
-        )
-        
-        self.lr = lr
-        
-    def __call__(self, step):
-        self.on_epoch_begin(step, logs = None)
-        
-        return self.lr
-
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, Flatten
 from tensorflow.keras.models import Model
 import tensorflow as tf
 
 from tqdm import tqdm
+from lr_schedule import LRSchedule
+tf.keras.backend.set_floatx('float64')
 
 print(tf.__version__)
 
@@ -144,7 +109,7 @@ loss_function = tf.keras.losses.CategoricalCrossentropy()
 
 train_accuracy = tf.keras.metrics.CategoricalAccuracy()
 
-ckpt_path = './model/'
+ckpt_path = './model/ckpt/'
 ckpt = tf.train.Checkpoint(epoch = tf.Variable(1), loss = tf.Variable(1., dtype = tf.float64),
                            accuracy = tf.Variable(1., dtype = tf.float64),
                            model = model,
