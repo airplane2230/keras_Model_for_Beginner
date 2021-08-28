@@ -1,3 +1,43 @@
+import tensorflow as tf
+import numpy as np
+
+tf.keras.backend.set_floatx('float64')
+
+class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, init_lr, warmup_epoch,
+                 decay_fn
+                 ):
+        self.init_lr = init_lr
+        self.decay_fn = decay_fn
+        self.warmup_epoch = warmup_epoch
+        self.lr = 1e-4
+        
+    def get_config(self):
+        # not working
+        config = {
+            'learning_rate': self.lr
+        }
+        
+        return config
+    
+    # No Override
+    def on_epoch_begin(self, epoch, logs = None):
+        global_epoch = tf.cast(epoch + 1, tf.float64)
+        warmup_epoch_float = tf.cast(self.warmup_epoch, tf.float64)
+        
+        lr = tf.cond(
+            global_epoch < warmup_epoch_float,
+            lambda: tf.cast(self.init_lr * (global_epoch / warmup_epoch_float), tf.float64),
+            lambda: tf.cast(self.decay_fn(epoch - warmup_epoch_float), tf.float64)
+        )
+        
+        self.lr = lr
+        
+    def __call__(self, step):
+        self.on_epoch_begin(step, logs = None)
+        
+        return self.lr
+
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, Flatten
 from tensorflow.keras.models import Model
@@ -5,11 +45,11 @@ import tensorflow as tf
 
 from tqdm import tqdm
 
-from lr_schedule import LRSchedule
-
 print(tf.__version__)
 
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+BATCH_SIZE = 512
 
 def make_datasets(x, y):
     # (28, 28) -> (28, 28, 1)
@@ -20,7 +60,7 @@ def make_datasets(x, y):
             
     ds = tf.data.Dataset.from_tensor_slices((x, y))
     ds = ds.map(_new_axis, num_parallel_calls = tf.data.experimental.AUTOTUNE)
-    ds = ds.shuffle(100).batch(32) # 배치 크기 조절하세요
+    ds = ds.shuffle(BATCH_SIZE * 2).batch(BATCH_SIZE) # 배치 크기 조절하세요
     ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
     
     return ds
@@ -79,7 +119,7 @@ optimizer = tf.keras.optimizers.Adam(learning_rate = LRSchedule(init_lr,
                                                                 decay_fn=lr_scheduler
                                                                 ))
 
-init_path = './model/model_ckpt/init'
+init_path = './model/init'
 init_ckpt = tf.train.Checkpoint(model = model, optimizer = optimizer)
 
 init_ckpt_manager = tf.train.CheckpointManager(init_ckpt, init_path, max_to_keep = 10)
@@ -104,7 +144,7 @@ loss_function = tf.keras.losses.CategoricalCrossentropy()
 
 train_accuracy = tf.keras.metrics.CategoricalAccuracy()
 
-ckpt_path = './model/model_ckpt/'
+ckpt_path = './model/'
 ckpt = tf.train.Checkpoint(epoch = tf.Variable(1), loss = tf.Variable(1., dtype = tf.float64),
                            accuracy = tf.Variable(1., dtype = tf.float64),
                            model = model,
@@ -115,7 +155,7 @@ ckpt_manager = tf.train.CheckpointManager(ckpt, ckpt_path, max_to_keep = 10)
 ckpt.restore(ckpt_manager.latest_checkpoint)
 if ckpt_manager.latest_checkpoint:
     print(f'Restored from {ckpt_manager.latest_checkpoint}')
-    print(f'epoch: {ckpt.epoch}, accuracy: {ckpt.accuracy}, loss: {ckpt.loss}')
+    print(f'epoch: {ckpt.epoch.numpy()}, accuracy: {ckpt.accuracy.numpy()}, loss: {ckpt.loss.numpy()}')
 else:
     print('Initializing from Scratch')
     

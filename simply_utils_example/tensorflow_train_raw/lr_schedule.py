@@ -6,7 +6,7 @@ class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
                  ):
         self.init_lr = init_lr
         self.decay_fn = decay_fn
-        self.warup_epoch = warmup_epoch
+        self.warmup_epoch = warmup_epoch
         self.lr = 1e-4
         
     def get_config(self):
