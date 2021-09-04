@@ -61,9 +61,10 @@ def train_step(inp, tar, training = True):
         predictions = model(inp)
         loss = loss_function(tar, predictions)
         
-    gradients = tape.gradient(loss, model.trainable_variables)
-    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-    train_accuracy.update_state(tar, predictions)
+    if training:
+        gradients = tape.gradient(loss, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+        train_accuracy.update_state(tar, predictions)
     
     return loss, predictions
 
@@ -141,8 +142,6 @@ if __name__ == "__main__":
     if ckpt_manager.latest_checkpoint:
         print(f'Restored from {ckpt_manager.latest_checkpoint}')
         print(f'epoch: {ckpt.epoch.numpy()}, accuracy: {ckpt.accuracy.numpy()}, loss: {ckpt.loss.numpy()}')
-
-        init_epoch = ckpt.epoch.numpy()
     else:
         print('Initializing from Scratch')
     
