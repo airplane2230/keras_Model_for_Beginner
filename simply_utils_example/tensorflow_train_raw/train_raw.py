@@ -20,7 +20,7 @@ def make_datasets(x, y):
             
     ds = tf.data.Dataset.from_tensor_slices((x, y))
     ds = ds.map(_new_axis, num_parallel_calls = tf.data.experimental.AUTOTUNE)
-    ds = ds.shuffle(BATCH_SIZE * 2).batch(BATCH_SIZE) # 배치 크기 조절하세요
+    ds = ds.shuffle(BATCH_SIZE * 2).batch(BATCH_SIZE)
     ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
     
     return ds
