@@ -68,6 +68,12 @@ def train_step(inp, tar, training = True):
     
     return loss, predictions
 
+def get_steps(x_size, batch_size):
+    if x_size / batch_size == 0:
+        return x_size // batch_size
+    else:
+        return x_size // batch_size + 1
+
 
 if __name__ == "__main__":
     # hyperparameter
@@ -77,7 +83,7 @@ if __name__ == "__main__":
     init_epoch = 1
     warmup_epoch = 5
     
-    init_lr = 0.1
+    init_lr = 1e-3
     min_lr = 1e-6
     power = 1.
     
@@ -109,11 +115,11 @@ if __name__ == "__main__":
         print(f'Continue Training!, {init_epoch_ckpt.epoch.numpy()}')
         init_epoch = init_epoch_ckpt.epoch.numpy()
 
-
     if isSchedule:
         optimizer = tf.keras.optimizers.Adam(learning_rate = LRSchedule(init_lr,
-                                                                        warmup_epoch=warmup_epoch,
-                                                                        decay_fn=lr_scheduler,
+                                                                        warmup_epoch = warmup_epoch,
+                                                                        steps_per_epoch = get_steps(x_train.shape[0], BATCH_SIZE),
+                                                                        decay_fn = lr_scheduler,
                                                                         continue_epoch = init_epoch)
                                             )
     else:
@@ -145,17 +151,15 @@ if __name__ == "__main__":
     else:
         print('Initializing from Scratch')
     
-    
-    test_lr_scheduler = LRSchedule(init_lr,warmup_epoch=warmup_epoch,decay_fn=lr_scheduler, continue_epoch = init_epoch)
-    
     for epoch in range(init_epoch, EPOCHS):
         total_loss = 0.
         train_accuracy.reset_states()
 
         tqdm_dataset = tqdm(enumerate(train_ds))
-
+        
         if isSchedule:
-            print('current learning_rate: ', test_lr_scheduler(epoch).numpy())
+            print('current learning_rate: ', optimizer.lr(optimizer.iterations))
+#             print(optimizer.get_config())
 
         for (batch, (tensor, target)) in tqdm_dataset:
             batch_loss, predictions = train_step(tensor, target, training = True)
