@@ -11,5 +11,10 @@
 + EfficientNet
 + SE-ResNet
 
-## Object Detection
-+ SSD(continue): https://arxiv.org/pdf/1512.02325.pdf
+## utils
++ augmentation
++ Gradient Accumulation
++ LearningRate Scheduler
++ Tensorflow Training on @train_step
++ Transformer
++ Python Decorator
